@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+.DS_Store
+
+# Artefactos generados (se regeneran ejecutando los scripts)
+data/*.pkl
+data/*.npz
+figures/*.png
