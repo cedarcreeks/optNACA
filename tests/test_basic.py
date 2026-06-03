@@ -6,7 +6,7 @@ the objective/penalty math, the designation helper, and the failure handling of
 eval_xfoil (XFOIL is replaced by a fake module). Run with:  pytest
 """
 
-import sys
+import subprocess
 import types
 
 import numpy as np
@@ -14,6 +14,11 @@ import pytest
 
 import airfoil_utils as au
 from airfoil_utils import naca4, naca_designation, penalized_objective
+
+
+def _completed(stdout, returncode=0):
+    """Build a fake subprocess.CompletedProcess-like object."""
+    return types.SimpleNamespace(returncode=returncode, stdout=stdout, stderr="")
 
 
 # --------------------------------------------------------------------------- #
@@ -90,49 +95,77 @@ def test_penalized_objective_outside_band_is_penalized():
 
 
 # --------------------------------------------------------------------------- #
-# eval_xfoil failure handling (XFOIL faked out)
+# eval_xfoil orchestration (subprocess worker mocked out)
 # --------------------------------------------------------------------------- #
-def _install_fake_xfoil(monkeypatch, a_return=None, raise_on_solve=False):
-    """Inject a fake `xfoil` package into sys.modules."""
-    class FakeXFoil:
-        def __init__(self):
-            self.print = True
-            self.airfoil = None
-            self.Re = self.M = self.max_iter = None
+def test_eval_xfoil_parses_worker_result(monkeypatch):
+    # First recipe already converges -> only one subprocess call.
+    calls = []
 
-        def repanel(self):
-            pass
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return _completed("[0.5, 0.006, -0.05]\n")
 
-        def a(self, alpha):
-            if raise_on_solve:
-                raise RuntimeError("solver blew up")
-            return a_return
-
-    pkg = types.ModuleType("xfoil")
-    pkg.XFoil = FakeXFoil
-    model = types.ModuleType("xfoil.model")
-    model.Airfoil = lambda x, y: object()
-    pkg.model = model
-    monkeypatch.setitem(sys.modules, "xfoil", pkg)
-    monkeypatch.setitem(sys.modules, "xfoil.model", model)
-
-
-def test_eval_xfoil_returns_tuple_on_success(monkeypatch):
-    _install_fake_xfoil(monkeypatch, a_return=(0.5, 0.006, -0.05, 0.0))
+    monkeypatch.setattr(au.subprocess, "run", fake_run)
     out = au.eval_xfoil(0.02, 0.4, 0.12, 2.0)
     assert out == pytest.approx((0.5, 0.006, -0.05))
+    assert len(calls) == 1
 
 
-def test_eval_xfoil_returns_none_on_nan(monkeypatch):
-    _install_fake_xfoil(monkeypatch, a_return=(np.nan, np.nan, np.nan, np.nan))
+def test_eval_xfoil_returns_none_when_all_recipes_fail(monkeypatch):
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return _completed("null\n")
+
+    monkeypatch.setattr(au.subprocess, "run", fake_run)
     assert au.eval_xfoil(0.02, 0.4, 0.12, 2.0) is None
+    # It must have escalated through every recipe before giving up.
+    assert len(calls) == len(au._XFOIL_RECIPES)
 
 
-def test_eval_xfoil_returns_none_on_nonpositive_cd(monkeypatch):
-    _install_fake_xfoil(monkeypatch, a_return=(0.5, 0.0, -0.05, 0.0))
-    assert au.eval_xfoil(0.02, 0.4, 0.12, 2.0) is None
+def test_eval_xfoil_escalates_to_next_recipe(monkeypatch):
+    # First recipe fails (null), second converges.
+    outputs = iter(["null\n", "[0.7, 0.009, -0.04]\n"])
+
+    def fake_run(cmd, **kwargs):
+        return _completed(next(outputs))
+
+    monkeypatch.setattr(au.subprocess, "run", fake_run)
+    assert au.eval_xfoil(0.02, 0.4, 0.12, 2.0) == pytest.approx((0.7, 0.009, -0.04))
 
 
-def test_eval_xfoil_returns_none_when_solver_raises(monkeypatch):
-    _install_fake_xfoil(monkeypatch, raise_on_solve=True)
-    assert au.eval_xfoil(0.02, 0.4, 0.12, 2.0) is None
+def test_eval_xfoil_survives_timeout(monkeypatch):
+    # First recipe times out, second converges -> no exception propagates.
+    state = {"first": True}
+
+    def fake_run(cmd, **kwargs):
+        if state["first"]:
+            state["first"] = False
+            raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout", 90))
+        return _completed("[0.5, 0.006, -0.05]\n")
+
+    monkeypatch.setattr(au.subprocess, "run", fake_run)
+    assert au.eval_xfoil(0.02, 0.4, 0.12, 2.0) == pytest.approx((0.5, 0.006, -0.05))
+
+
+def test_eval_xfoil_validates_geometry_before_subprocess(monkeypatch):
+    # A bad geometry must raise ValueError without ever spawning a worker.
+    def fake_run(cmd, **kwargs):  # pragma: no cover - must not be called
+        raise AssertionError("subprocess should not run for invalid geometry")
+
+    monkeypatch.setattr(au.subprocess, "run", fake_run)
+    with pytest.raises(ValueError):
+        au.eval_xfoil(0.02, 0.4, -0.1, 2.0)
+
+
+@pytest.mark.skipif(
+    __import__("importlib").util.find_spec("xfoil") is None,
+    reason="xfoil not installed",
+)
+def test_eval_xfoil_real_roundtrip():
+    # End-to-end through the real worker subprocess (only if XFOIL is present).
+    out = au.eval_xfoil(0.02, 0.4, 0.12, 2.0)
+    assert out is not None
+    cl, cd, cm = out
+    assert 0.2 < cl < 0.8 and 0.0 < cd < 0.05

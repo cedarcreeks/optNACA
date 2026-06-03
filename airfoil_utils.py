@@ -10,6 +10,11 @@ with the standard NACA formula and the "CFD" (actually a panel solver with a
 viscous correction) is provided by XFOIL.
 """
 
+import json
+import os
+import subprocess
+import sys
+
 import numpy as np
 
 # Global seed for reproducibility across the whole project.
@@ -132,41 +137,51 @@ def naca4(m, p, t, n_points=120):
     return x_coords, y_coords
 
 
-def eval_xfoil(m, p, t, alpha, reynolds=REYNOLDS, mach=MACH, max_iter=100):
+# Convergence recipes tried, in order, by eval_xfoil. Recipe 1 solves the vast
+# majority; the later, more robust recipes catch borderline geometries.
+_XFOIL_RECIPES = (1, 2, 3, 4, 5)
+_WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_xfoil_worker.py")
+
+
+def eval_xfoil(m, p, t, alpha, reynolds=REYNOLDS, mach=MACH, timeout=90):
     """
     Evaluate a NACA airfoil with XFOIL at a given angle of attack.
 
-    Returns (Cl, Cd, Cm) if it converges, or None if XFOIL does not converge or
-    fails. The xfoil import is done inside the function so the rest of the
-    project can be imported even when XFOIL is not installed.
+    Returns (Cl, Cd, Cm) if it converges, or None otherwise.
+
+    Each evaluation runs in a fresh subprocess (see _xfoil_worker.py) so the
+    XFOIL Fortran global state is always clean, which makes results
+    order-independent and reproducible. Several convergence recipes are tried in
+    turn until one succeeds, so borderline geometries still converge instead of
+    being silently dropped. This function never raises on a solver failure: it
+    returns None.
     """
-    try:
-        from xfoil import XFoil
-        from xfoil.model import Airfoil
-    except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "The 'xfoil' package is not installed. Install it from source:\n"
-            "  pip install git+https://github.com/DARcorporation/xfoil-python.git"
-        ) from exc
+    # Validate the geometry up front (raises ValueError on a clearly bad call).
+    naca4(m, p, t)
 
-    x, y = naca4(m, p, t)
+    if not os.path.exists(_WORKER):  # pragma: no cover
+        raise FileNotFoundError(f"XFOIL worker not found: {_WORKER}")
 
-    # The whole solve is guarded: a degenerate geometry can make XFOIL raise
-    # instead of just returning NaN. We treat any such failure as "did not
-    # converge" so callers never see an exception, only None.
-    try:
-        xf = XFoil()
-        xf.print = False              # silence the solver output
-        xf.airfoil = Airfoil(x, y)
-        xf.repanel()                  # clean panel distribution -> better convergence
-        xf.Re = reynolds
-        xf.M = mach
-        xf.max_iter = max_iter
-        # xf.a(alpha) returns (cl, cd, cm, cp); NaN if it does not converge.
-        cl, cd, cm, _ = xf.a(alpha)
-    except Exception:
-        return None
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    for recipe in _XFOIL_RECIPES:
+        cmd = [
+            sys.executable, _WORKER,
+            repr(float(m)), repr(float(p)), repr(float(t)), repr(float(alpha)),
+            repr(float(reynolds)), repr(float(mach)), str(recipe), module_dir,
+        ]
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout
+            )
+        except subprocess.TimeoutExpired:
+            continue
+        if proc.returncode != 0 or not proc.stdout.strip():
+            continue
+        try:
+            result = json.loads(proc.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            continue
+        if result is not None:
+            return float(result[0]), float(result[1]), float(result[2])
 
-    if not np.isfinite(cl) or not np.isfinite(cd) or cd <= 0:
-        return None
-    return float(cl), float(cd), float(cm)
+    return None

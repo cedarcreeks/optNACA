@@ -36,6 +36,7 @@ Result: the optimum is reached with **tens** of evaluations instead of
 ```
 airfoil_smt_optimization/
 ├── airfoil_utils.py          # NACA geometry + XFOIL evaluation (shared)
+├── _xfoil_worker.py          # Single-evaluation XFOIL worker (run in a subprocess)
 ├── 01_generate_dataset.py    # Initial DOE with LHS + XFOIL -> data/airfoil_dataset.csv
 ├── 02_train_surrogate.py     # Trains Kriging (Cl, Cd) + LOO cross-validation
 ├── 03_ego_optimization.py    # Optimization with EGO (30 infill points)
@@ -80,7 +81,7 @@ everything:
 Run the scripts in order:
 
 ```bash
-python 01_generate_dataset.py     # ~5 min: generates 80 points with XFOIL
+python 01_generate_dataset.py     # ~30 s: generates 80 points with XFOIL
 python 02_train_surrogate.py      # trains Kriging and validates (LOO)
 python 03_ego_optimization.py     # EGO: 30 additional CFD evaluations
 python 04_visualization.py        # generates the 4 figures
@@ -95,8 +96,8 @@ jupyter notebook notebook.ipynb
 ## Tests
 
 The pure-Python parts (NACA geometry, objective/penalty math, designation, and
-`eval_xfoil` failure handling) are covered by a test suite that runs **without
-XFOIL installed**:
+the `eval_xfoil` subprocess orchestration) are covered by a test suite that runs
+**without XFOIL installed**:
 
 ```bash
 pip install -r requirements-dev.txt
@@ -111,11 +112,24 @@ pytest
 3. **Optimal airfoil geometry** with its parameters and coefficients.
 4. **Surrogate validation**: predicted vs real (Leave-One-Out) with R² and RMSE.
 
+## Robust XFOIL evaluation
+
+XFOIL wraps a Fortran core with global state, so consecutive evaluations in the
+same process can interfere and make borderline geometries fail to converge. To
+avoid this, **each evaluation runs in a fresh subprocess** (`_xfoil_worker.py`),
+which keeps the solver state clean and the results order-independent. If the
+default settings do not converge a given airfoil, `eval_xfoil` escalates through
+several increasingly robust **convergence recipes** (finer panelling, more
+iterations, alpha continuation) until one succeeds. In practice the full 80-point
+DOE converges **80/80**. Should a geometry ever still fail, it is handled
+gracefully (dropped from the dataset, penalized with `Cd=9999` during EGO) so the
+pipeline never raises.
+
 ## Reproducibility
 
 The whole chain uses a fixed seed (`random_state=42`): LHS sampling, Kriging
-training and the EGO optimizer. XFOIL convergence failures are handled
-robustly (dropped from the dataset and penalized with `Cd=9999` during EGO).
+training and the EGO optimizer. Because every XFOIL call is isolated in its own
+process, results do not depend on evaluation order.
 
 ## License
 
