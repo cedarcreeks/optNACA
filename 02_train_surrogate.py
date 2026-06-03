@@ -67,6 +67,10 @@ def metrics(y_true, y_pred):
 
 
 def main():
+    if not os.path.exists(DATASET_CSV):
+        raise SystemExit(
+            f"Dataset not found: {DATASET_CSV}. Run 01_generate_dataset.py first."
+        )
     df = pd.read_csv(DATASET_CSV)
     x = df[["m", "p", "t", "alpha"]].values
     y_cl = df["Cl"].values

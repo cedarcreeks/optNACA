@@ -78,6 +78,10 @@ def naca_designation(m, p, t):
 
 
 def main():
+    if not os.path.exists(DATASET_CSV):
+        raise SystemExit(
+            f"Dataset not found: {DATASET_CSV}. Run 01_generate_dataset.py first."
+        )
     # Initial DOE = dataset from step 1. EGO reuses it without re-evaluating it.
     df = pd.read_csv(DATASET_CSV)
     x_doe = df[["m", "p", "t", "alpha"]].values
@@ -112,13 +116,16 @@ def main():
     desig = naca_designation(m_o, p_o, t_o)
 
     # --- EGO convergence curve: best feasible Cd vs number of evaluations ---
-    infill_f = np.array(_log["f"][:N_INFILL])
-    infill_cd = np.array(_log["cd"][:N_INFILL])
+    # Use the actual number of logged infill evaluations (robust if EGO
+    # evaluates a different count than requested).
+    infill_f = np.array(_log["f"])
+    infill_cd = np.array(_log["cd"])
+    n_eval = len(infill_f)
 
     best_f = f_doe.min()
     best_cd = cd_doe[np.argmin(f_doe)]
     conv_cd = []
-    for k in range(N_INFILL):
+    for k in range(n_eval):
         if infill_f[k] < best_f:
             best_f = infill_f[k]
             best_cd = infill_cd[k]
@@ -127,13 +134,13 @@ def main():
 
     # --- Random-search baseline: same points, shuffled order ---
     rng = np.random.default_rng(RANDOM_STATE)
-    perm = rng.permutation(N_INFILL)
+    perm = rng.permutation(n_eval)
     rand_f = infill_f[perm]
     rand_cd = infill_cd[perm]
     best_f_r = f_doe.min()
     best_cd_r = cd_doe[np.argmin(f_doe)]
     conv_cd_rand = []
-    for k in range(N_INFILL):
+    for k in range(n_eval):
         if rand_f[k] < best_f_r:
             best_f_r = rand_f[k]
             best_cd_r = rand_cd[k]

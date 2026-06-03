@@ -108,20 +108,27 @@ def eval_xfoil(m, p, t, alpha, reynolds=REYNOLDS, mach=MACH, max_iter=100):
         from xfoil.model import Airfoil
     except ImportError as exc:  # pragma: no cover
         raise ImportError(
-            "The 'xfoil' package is not installed. Run: pip install xfoil"
+            "The 'xfoil' package is not installed. Install it from source:\n"
+            "  pip install git+https://github.com/DARcorporation/xfoil-python.git"
         ) from exc
 
     x, y = naca4(m, p, t)
 
-    xf = XFoil()
-    xf.print = False              # silence the solver output
-    xf.airfoil = Airfoil(x, y)
-    xf.Re = reynolds
-    xf.M = mach
-    xf.max_iter = max_iter
-
-    # xf.a(alpha) returns (cl, cd, cm, cp); NaN if it does not converge.
-    cl, cd, cm, _ = xf.a(alpha)
+    # The whole solve is guarded: a degenerate geometry can make XFOIL raise
+    # instead of just returning NaN. We treat any such failure as "did not
+    # converge" so callers never see an exception, only None.
+    try:
+        xf = XFoil()
+        xf.print = False              # silence the solver output
+        xf.airfoil = Airfoil(x, y)
+        xf.repanel()                  # clean panel distribution -> better convergence
+        xf.Re = reynolds
+        xf.M = mach
+        xf.max_iter = max_iter
+        # xf.a(alpha) returns (cl, cd, cm, cp); NaN if it does not converge.
+        cl, cd, cm, _ = xf.a(alpha)
+    except Exception:
+        return None
 
     if not np.isfinite(cl) or not np.isfinite(cd) or cd <= 0:
         return None

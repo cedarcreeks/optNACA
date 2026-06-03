@@ -161,6 +161,15 @@ def plot_validation(loo):
 
 
 def main():
+    required = [DATASET_CSV, MODELS_PKL, LOO_NPZ, HISTORY_NPZ, RESULT_PKL]
+    missing = [f for f in required if not os.path.exists(f)]
+    if missing:
+        raise SystemExit(
+            "Missing input files: " + ", ".join(missing) + ".\n"
+            "Run 01_generate_dataset.py, 02_train_surrogate.py and "
+            "03_ego_optimization.py first."
+        )
+
     os.makedirs(FIG_DIR, exist_ok=True)
     df, models, loo, hist, result = load_all()
 

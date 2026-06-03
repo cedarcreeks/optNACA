@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from smt.sampling_methods import LHS
 
-from airfoil_utils import XLIMITS, VAR_NAMES, RANDOM_STATE, REYNOLDS, eval_xfoil
+from airfoil_utils import XLIMITS, RANDOM_STATE, REYNOLDS, eval_xfoil
 
 # Number of initial DOE points.
 N_SAMPLES = 80
