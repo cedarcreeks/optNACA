@@ -3,5 +3,8 @@ numpy>=1.22
 scipy>=1.8
 matplotlib>=3.5
 pandas>=1.4
-xfoil>=1.1.1
 jupyter>=1.0
+
+# XFOIL Python bindings. The PyPI sdist is broken (missing CMakeLists.txt),
+# so install from the upstream source repository instead:
+xfoil @ git+https://github.com/DARcorporation/xfoil-python.git

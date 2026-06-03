@@ -53,16 +53,18 @@ airfoil_smt_optimization/
 pip install -r requirements.txt
 ```
 
-> Tested on macOS. Use **Python 3.10–3.12** (the `xfoil` wheel does not yet
-> build on 3.13/3.14). The `xfoil` package compiles a Fortran binary, so you
+> Tested on macOS with **Python 3.12**. Use **Python 3.10–3.12** (the `xfoil`
+> bindings do not build on 3.13/3.14). XFOIL compiles a Fortran binary, so you
 > also need `cmake` and `gfortran`:
 >
 > ```bash
 > brew install cmake gcc        # gcc provides gfortran (macOS)
 > ```
 >
-> The rest of the pipeline (SMT: LHS, Kriging, EGO) runs on any supported
-> Python; only the XFOIL evaluations require the `xfoil` package.
+> `requirements.txt` pulls `xfoil` from its GitHub source because the PyPI
+> sdist is broken (it ships without `CMakeLists.txt`). The rest of the pipeline
+> (SMT: LHS, Kriging, EGO) runs on any supported Python; only the XFOIL
+> evaluations require the `xfoil` package.
 
 ## Usage
 
