@@ -13,6 +13,8 @@ import pickle
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")  # non-interactive backend: works headless / over SSH / in CI
 import matplotlib.pyplot as plt
 
 from airfoil_utils import naca4

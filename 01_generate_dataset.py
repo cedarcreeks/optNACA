@@ -47,6 +47,14 @@ def main():
         records.append([m, p, t, alpha, cl, cd, cm])
         print(f"[{i + 1:3d}/{N_SAMPLES}] Cl={cl:+.4f} Cd={cd:.5f} Cm={cm:+.4f}")
 
+    # A surrogate needs enough samples to fit. Fail loudly rather than write a
+    # dataset that would make the next steps crash on a tiny/empty design table.
+    if len(records) < 10:
+        raise SystemExit(
+            f"Only {len(records)} XFOIL evaluations converged (need >= 10). "
+            "Check the XFOIL installation or widen the design space."
+        )
+
     # Save the cleaned dataset.
     columns = ["m", "p", "t", "alpha", "Cl", "Cd", "Cm"]
     df = pd.DataFrame(records, columns=columns)

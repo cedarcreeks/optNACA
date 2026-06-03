@@ -21,17 +21,16 @@ from smt.applications import EGO
 from smt.surrogate_models import KRG
 from smt.design_space import DesignSpace
 
-from airfoil_utils import XLIMITS, RANDOM_STATE, eval_xfoil
+from airfoil_utils import (
+    XLIMITS, RANDOM_STATE, CL_TARGET, CL_TOL, PENALTY, CD_FAIL,
+    eval_xfoil, penalized_objective, naca_designation,
+)
 
 DATASET_CSV = os.path.join("data", "airfoil_dataset.csv")
 HISTORY_NPZ = os.path.join("data", "ego_history.npz")
 RESULT_PKL = os.path.join("data", "ego_result.pkl")
 
 N_INFILL = 30          # extra XFOIL evaluations spent by EGO
-CL_TARGET = 0.5
-CL_TOL = 0.05
-PENALTY = 1000.0
-CD_FAIL = 9999.0       # value assigned when XFOIL does not converge
 
 # Log of every evaluation done by the objective (in call order).
 # Lets us reconstruct the convergence curve with the real Cd of each point.
@@ -46,8 +45,7 @@ def objective_value(m, p, t, alpha):
         cl, cd = 0.0, CD_FAIL
     else:
         cl, cd, _ = result
-    # Penalty for moving away from the target Cl band.
-    f = cd + PENALTY * max(0.0, abs(cl - CL_TARGET) - CL_TOL)
+    f = penalized_objective(cl, cd)
     return cl, cd, f
 
 
@@ -69,14 +67,6 @@ def objective(x):
     return y
 
 
-def naca_designation(m, p, t):
-    """Convert (m, p, t) into the 4-digit NACA designation."""
-    d1 = int(round(m * 100))
-    d2 = int(round(p * 10))
-    d34 = int(round(t * 100))
-    return f"NACA {d1}{d2}{d34:02d}"
-
-
 def main():
     if not os.path.exists(DATASET_CSV):
         raise SystemExit(
@@ -84,6 +74,11 @@ def main():
         )
     # Initial DOE = dataset from step 1. EGO reuses it without re-evaluating it.
     df = pd.read_csv(DATASET_CSV)
+    if len(df) < 10:
+        raise SystemExit(
+            f"Dataset has only {len(df)} points (need >= 10). "
+            "Re-run 01_generate_dataset.py."
+        )
     x_doe = df[["m", "p", "t", "alpha"]].values
     cl_doe = df["Cl"].values
     cd_doe = df["Cd"].values

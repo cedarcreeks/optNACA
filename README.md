@@ -92,6 +92,17 @@ Or open the integrated notebook directly:
 jupyter notebook notebook.ipynb
 ```
 
+## Tests
+
+The pure-Python parts (NACA geometry, objective/penalty math, designation, and
+`eval_xfoil` failure handling) are covered by a test suite that runs **without
+XFOIL installed**:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Generated figures
 
 1. **Response surface** of the surrogate `Cd(t, alpha)` with the Kriging

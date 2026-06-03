@@ -34,6 +34,34 @@ XLIMITS = np.array(
 )
 VAR_NAMES = ["m", "p", "t", "alpha"]
 
+# Optimization target: minimize Cd while keeping Cl inside a band around CL_TARGET.
+CL_TARGET = 0.5
+CL_TOL = 0.05
+PENALTY = 1000.0
+# Drag value assigned when XFOIL does not converge (large, so EGO avoids it).
+CD_FAIL = 9999.0
+
+
+def penalized_objective(cl, cd):
+    """
+    Soft-constrained objective: minimize Cd, penalizing departures from the
+    target lift band |Cl - CL_TARGET| > CL_TOL.
+
+        f = Cd + PENALTY * max(0, |Cl - CL_TARGET| - CL_TOL)
+
+    Scalar in, scalar out. The vectorized form is inlined where a whole DOE is
+    scored at once.
+    """
+    return cd + PENALTY * max(0.0, abs(cl - CL_TARGET) - CL_TOL)
+
+
+def naca_designation(m, p, t):
+    """Convert (m, p, t) fractions into the 4-digit NACA designation string."""
+    d1 = int(round(m * 100))
+    d2 = int(round(p * 10))
+    d34 = int(round(t * 100))
+    return f"NACA {d1}{d2}{d34:02d}"
+
 
 def naca4(m, p, t, n_points=120):
     """
@@ -52,6 +80,15 @@ def naca4(m, p, t, n_points=120):
            (trailing edge -> upper surface -> leading edge -> lower surface ->
             trailing edge)
     """
+    # Validate inputs so a bad call fails loudly here instead of producing a
+    # garbage geometry that silently breaks XFOIL downstream.
+    if t <= 0:
+        raise ValueError(f"thickness t must be > 0, got {t}")
+    if not 0.0 < p < 1.0:
+        raise ValueError(f"camber position p must be in (0, 1), got {p}")
+    if n_points < 3:
+        raise ValueError(f"n_points must be >= 3, got {n_points}")
+
     # Cosine point distribution: clusters nodes near the leading and trailing
     # edges, where the geometry changes quickly.
     beta = np.linspace(0.0, np.pi, n_points)

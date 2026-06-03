@@ -72,6 +72,11 @@ def main():
             f"Dataset not found: {DATASET_CSV}. Run 01_generate_dataset.py first."
         )
     df = pd.read_csv(DATASET_CSV)
+    if len(df) < 10:
+        raise SystemExit(
+            f"Dataset has only {len(df)} points (need >= 10). "
+            "Re-run 01_generate_dataset.py."
+        )
     x = df[["m", "p", "t", "alpha"]].values
     y_cl = df["Cl"].values
     y_cd = df["Cd"].values
