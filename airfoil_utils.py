@@ -104,7 +104,7 @@ def eval_xfoil(m, p, t, alpha, reynolds=REYNOLDS, mach=MACH, max_iter=100):
     project can be imported even when XFOIL is not installed.
     """
     try:
-        from xfoil import XFOIL
+        from xfoil import XFoil
         from xfoil.model import Airfoil
     except ImportError as exc:  # pragma: no cover
         raise ImportError(
@@ -113,7 +113,7 @@ def eval_xfoil(m, p, t, alpha, reynolds=REYNOLDS, mach=MACH, max_iter=100):
 
     x, y = naca4(m, p, t)
 
-    xf = XFOIL()
+    xf = XFoil()
     xf.print = False              # silence the solver output
     xf.airfoil = Airfoil(x, y)
     xf.Re = reynolds
