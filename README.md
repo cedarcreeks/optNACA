@@ -50,31 +50,44 @@ airfoil_smt_optimization/
 
 ## Installation
 
-XFOIL compiles a Fortran binary, so you need `cmake` and `gfortran` first:
+Runs on **macOS, Linux and Windows** with Python 3.10–3.14. XFOIL compiles a
+Fortran binary, so you first need a toolchain (`cmake` + `gfortran`):
+
+| OS | Install the toolchain |
+|----|-----------------------|
+| **macOS** | `brew install cmake gcc` (gcc provides gfortran) |
+| **Linux (Debian/Ubuntu)** | `sudo apt-get install cmake gfortran python3-venv` |
+| **Linux (Fedora)** | `sudo dnf install cmake gcc-gfortran` |
+| **Windows** | `conda install -c conda-forge cmake fortran-compiler` — or use **WSL2** and follow the Linux steps |
+
+Then create the environment and install everything with the helper script:
 
 ```bash
-brew install cmake gcc        # macOS; gcc provides gfortran
+./setup.sh           # macOS / Linux
+```
+```powershell
+.\setup.ps1          # Windows (PowerShell)
 ```
 
-Then install the Python dependencies:
+The script creates a virtual environment, installs the dependencies (building
+XFOIL from source) and verifies the import. To do it by hand instead:
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
-Or use the helper script, which creates a virtual environment and installs
-everything:
-
-```bash
-./setup.sh
 ```
 
 > **Note on the `xfoil` package.** `requirements.txt` pulls `xfoil` from its
 > GitHub source, **not** PyPI. The PyPI sdist is broken (it ships without
-> `CMakeLists.txt`), so `pip install xfoil` fails on every Python version. The
-> GitHub source builds fine on **Python 3.10–3.14** (verified). The rest of the
+> `CMakeLists.txt`), so `pip install xfoil` fails on every platform and Python
+> version. The GitHub source builds on **Python 3.10–3.14**. The rest of the
 > pipeline (SMT: LHS, Kriging, EGO) is pure Python; only the XFOIL evaluations
 > need the `xfoil` package.
+>
+> **Windows note.** Getting a native Fortran compiler on Windows is the only
+> fiddly part; conda-forge's `fortran-compiler` is the smoothest route. If you
+> hit a wall, **WSL2** lets you use the Linux path with zero friction.
 
 ## Usage
 
