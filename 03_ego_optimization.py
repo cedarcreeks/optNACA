@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from smt.applications import EGO
 from smt.surrogate_models import KRG
+from smt.design_space import DesignSpace
 
 from airfoil_utils import XLIMITS, RANDOM_STATE, eval_xfoil
 
@@ -90,15 +91,16 @@ def main():
           f"{f_doe.min():.5f}")
 
     # EGO with a Matern 5/2 Kriging surrogate and Expected Improvement criterion.
+    # EGO reads the design bounds from the surrogate's design space.
+    design_space = DesignSpace(XLIMITS)
     ego = EGO(
         n_iter=N_INFILL,
         criterion="EI",
         xdoe=x_doe,
         ydoe=y_doe,
-        xlimits=XLIMITS,
         surrogate=KRG(corr="matern52", print_global=False,
-                      random_state=RANDOM_STATE),
-        random_state=RANDOM_STATE,
+                      design_space=design_space, seed=RANDOM_STATE),
+        seed=RANDOM_STATE,
     )
 
     print(f"Running EGO with {N_INFILL} infill points (XFOIL on each)...")

@@ -30,7 +30,7 @@ def build_krg():
         poly="constant",
         theta0=[1e-2],
         print_global=False,
-        random_state=RANDOM_STATE,
+        seed=RANDOM_STATE,
     )
 
 

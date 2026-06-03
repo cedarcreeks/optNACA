@@ -28,7 +28,7 @@ def main():
 
     # LHS spreads the 80 points uniformly across the 4 dimensions, covering the
     # space better than purely random sampling.
-    sampling = LHS(xlimits=XLIMITS, random_state=RANDOM_STATE)
+    sampling = LHS(xlimits=XLIMITS, seed=RANDOM_STATE)
     x_doe = sampling(N_SAMPLES)
 
     records = []
