@@ -7,8 +7,6 @@ __pycache__/
 venv/
 env/
 .DS_Store
-.claude/
-CLAUDE.md
 
 # Artefactos generados (se regeneran ejecutando los scripts)
 data/*.pkl
