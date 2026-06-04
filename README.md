@@ -224,4 +224,10 @@ rediscover them.
 
 ## License
 
-MIT.
+This project's source code is released under the **MIT License** (see `LICENSE`).
+
+It relies on external tools that are installed separately and keep their own
+licenses — notably **XFOIL, which is GPL v2**. This repository does not bundle
+or redistribute XFOIL; it is compiled on your machine and called as an external
+program. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the full
+breakdown.
