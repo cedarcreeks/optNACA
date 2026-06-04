@@ -1,5 +1,7 @@
 # Aerodynamic optimization of NACA airfoils with Surrogate Modeling (SMT)
 
+[![CI](https://github.com/cedarcreeks/optNACA/actions/workflows/ci.yml/badge.svg)](https://github.com/cedarcreeks/optNACA/actions/workflows/ci.yml)
+
 A project that demonstrates the power of **surrogate modeling** to optimize
 airfoils **without running CFD at every iteration**. It uses the
 [SMT (Surrogate Modeling Toolbox)](https://smt.readthedocs.io/) library from

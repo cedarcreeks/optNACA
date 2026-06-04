@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Full build on macOS and Linux: compile XFOIL from source and run the whole
+  # test suite, including the real round-trip through the XFOIL subprocess.
+  tests:
+    name: tests (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Provides gfortran on every OS; cmake is preinstalled on GitHub runners.
+      - name: Set up Fortran toolchain
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: gcc
+
+      - name: Install dependencies (builds XFOIL from source)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Verify XFOIL import
+        run: python -c "from xfoil import XFoil; print('XFOIL import OK')"
+
+      - name: Run tests
+        run: pytest -v
+
+  # Windows: prove the pure-Python pipeline and the mocked tests pass. The XFOIL
+  # round-trip test auto-skips because xfoil is not built here (native Fortran on
+  # Windows is best done via conda-forge or WSL2 - see the README).
+  windows-pure-python:
+    name: tests (windows-latest, pure-python)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies (without XFOIL)
+        run: |
+          python -m pip install --upgrade pip
+          pip install smt numpy scipy matplotlib pandas pytest
+
+      - name: Run tests (xfoil round-trip auto-skips)
+        run: pytest -v
