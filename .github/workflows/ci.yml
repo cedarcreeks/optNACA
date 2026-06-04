@@ -6,6 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Run JavaScript actions (checkout, setup-python, setup-fortran) on Node 24
+# instead of the deprecated Node 20 runtime.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # Full build on macOS and Linux: compile XFOIL from source and run the whole
   # test suite, including the real round-trip through the XFOIL subprocess.
