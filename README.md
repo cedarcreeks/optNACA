@@ -125,14 +125,14 @@ A representative run finds:
 
 | Quantity | Value |
 |----------|-------|
-| Optimal airfoil | **NACA 2508** (`m=0.025`, `p=0.53`, `t=0.080`, `alpha≈1.4°`) |
-| Lift coefficient | `Cl ≈ 0.495` (inside the target band 0.5 ± 0.05) |
-| Drag coefficient | `Cd ≈ 0.00425` |
+| Optimal airfoil | **NACA 3608** (`m=0.030`, `p=0.555`, `t=0.080`, `alpha≈0.81°`) |
+| Lift coefficient | `Cl ≈ 0.506` (inside the target band 0.5 ± 0.05) |
+| Drag coefficient | `Cd ≈ 0.00409` |
 | Real CFD evaluations | **110** = 80 (initial DOE) + 30 (EGO infill) |
 | Equivalent grid search | 10⁴ evaluations (10 points per dimension, 4 dims) |
 | Speed-up | **~90×** fewer XFOIL evaluations |
 
-> The exact optimum can shift by a digit (e.g. NACA 2508 vs 3508) between XFOIL
+> The exact optimum can shift by a digit (e.g. NACA 3608 vs 2508) between XFOIL
 > builds / platforms, because XFOIL's viscous coefficients differ slightly across
 > versions and EGO settles on near-equivalent designs. The takeaway — a
 > low-drag airfoil at `Cl ≈ 0.5` found with ~110 CFD calls instead of thousands —
